@@ -116,9 +116,28 @@ export class EventService {
   ) {
     const { competition, training, note, activity, ...rest } = event;
 
+    const trainingWithActivity = training as EventTraining & {
+      relatedActivity?: EventActivity & {
+        event?: Pick<Event, 'name' | 'startDate' | 'endDate' | 'athleteId'>;
+      };
+    };
+    const relatedActivity = trainingWithActivity?.relatedActivity
+      ? (() => {
+          const relation = trainingWithActivity.relatedActivity!;
+          return {
+            ...relation,
+            name: relation.event?.name ?? '',
+            startDate: relation.event?.startDate ?? rest.startDate,
+            endDate: relation.event?.endDate ?? rest.endDate,
+            athleteId: relation.event?.athleteId ?? rest.athleteId,
+            type: EventType.ACTIVITY,
+          };
+        })()
+      : undefined;
+
     return {
       ...rest,
-      ...(training ? { ...training } : {}),
+      ...(training ? { ...training, relatedActivity } : {}),
       ...(competition ? { ...competition } : {}),
       ...(note ? { ...note } : {}),
       ...(activity ? { ...activity } : {}),
@@ -245,7 +264,7 @@ export class EventService {
           }
         : {};
 
-    return this.prisma.event.findMany({
+    const events = await this.prisma.event.findMany({
       where: {
         AND: [
           accessibleBy(ability, 'read').Event,
@@ -256,6 +275,13 @@ export class EventService {
         ],
       },
       include: EVENT_INCLUDES,
+    });
+
+    return events.filter((event) => {
+      const activity = event.activity as
+        | (EventActivity & { relatedTraining?: unknown })
+        | null;
+      return !activity?.relatedTraining;
     });
   }
 

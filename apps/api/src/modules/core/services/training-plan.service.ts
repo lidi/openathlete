@@ -89,6 +89,7 @@ export class TrainingPlanService {
             goal: data.program.name,
             sourceKey: data.program.sourceKey ?? null,
             sourceSchemaVersion: data.schemaVersion,
+            timezone: data.program.timezone,
             startDate: analysis.programStartDate,
             endDate: analysis.programEndDate,
             status: PlanStatus.DRAFT,

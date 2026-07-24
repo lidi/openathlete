@@ -26,6 +26,8 @@ model TrainingPlan {
   sourceKey           String? @map("source_key")
   /// Source schema version for imported plans
   sourceSchemaVersion String? @map("source_schema_version")
+  /// IANA timezone used when interpreting planned session dates
+  timezone String @default("UTC")
   /// Plan start date
   startDate DateTime @map("start_date")
   /// Plan end date

@@ -11,7 +11,14 @@ import {
 } from '@/utils/color';
 import { cn } from '@/utils/shadcn';
 import { useDraggable } from '@dnd-kit/core';
-import { ActivityIcon, Copy, Edit2, FileText, Trash2 } from 'lucide-react';
+import {
+  ActivityIcon,
+  CheckCircle2,
+  Copy,
+  Edit2,
+  FileText,
+  Trash2,
+} from 'lucide-react';
 import { usePostHog } from 'posthog-js/react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -91,6 +98,41 @@ function EventSecondLine({ event }: { event: Event }) {
   }
 }
 
+function CompletedActivityLine({
+  event,
+  onOpen,
+}: {
+  event: Event;
+  onOpen: (eventId: number) => void;
+}) {
+  if (event.type !== EVENT_TYPE.TRAINING || !event.relatedActivity) {
+    return null;
+  }
+
+  const activity = event.relatedActivity;
+  return (
+    <button
+      type="button"
+      className="mt-1 flex w-full items-start gap-1 text-left text-xs text-muted-foreground hover:text-foreground"
+      onClick={(clickEvent) => {
+        clickEvent.stopPropagation();
+        onOpen(activity.eventId);
+      }}
+    >
+      <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-green-600" />
+      <span className="min-w-0 truncate">
+        {activity.name}
+        <span className="ml-1">
+          {formatDuration(activity.movingTime)}
+          {activity.distance > 0
+            ? ` · ${formatDistance(activity.distance, 'km')} km`
+            : ''}
+        </span>
+      </span>
+    </button>
+  );
+}
+
 export function CalendarEvent({ event, wrapped }: P) {
   const posthog = usePostHog();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -100,13 +142,8 @@ export function CalendarEvent({ event, wrapped }: P) {
       event,
     },
   });
-  const {
-    openEventDetails,
-    editEvent,
-    events: allEvents,
-    coloredBy,
-    athleteId,
-  } = useCalendarContext();
+  const { openEventDetails, editEvent, coloredBy, athleteId } =
+    useCalendarContext();
   const [deleteEventDialog, setDeleteEventDialog] = useState<boolean>(false);
   const deleteEventMutation = useDeleteEventMutation({
     onSuccess: () => {
@@ -160,11 +197,6 @@ export function CalendarEvent({ event, wrapped }: P) {
   }, [event, coloredBy]);
 
   const draggable = event.type !== EVENT_TYPE.ACTIVITY && !wrapped;
-  const relatedEvents = allEvents.filter(
-    (e) =>
-      (e.type === EVENT_TYPE.TRAINING || e.type === EVENT_TYPE.COMPETITION) &&
-      e.relatedActivity?.eventId === event.eventId,
-  );
   return (
     <>
       <ContextMenu
@@ -237,18 +269,11 @@ export function CalendarEvent({ event, wrapped }: P) {
               </div>
               <div className="px-1 w-full">
                 <EventSecondLine event={event} />
+                <CompletedActivityLine
+                  event={event}
+                  onOpen={openEventDetails}
+                />
               </div>
-              {relatedEvents.length > 0 && (
-                <div className="flex flex-col gap-1 mt-1 w-full mb-0.5">
-                  {relatedEvents.map((relatedEvent) => (
-                    <CalendarEvent
-                      key={relatedEvent.eventId}
-                      event={relatedEvent}
-                      wrapped
-                    />
-                  ))}
-                </div>
-              )}
             </div>
           </CalendarEventTooltipWrapper>
         </ContextMenuTrigger>

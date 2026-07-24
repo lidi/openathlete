@@ -1,8 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import { SportType } from '@openathlete/database';
+
 import { PrismaService } from 'src/modules/prisma/services/prisma.service';
 
-import { TRAINING_MATCH_THRESHOLD } from '../constants';
+import {
+  TrainingMatchActivity,
+  TrainingMatchCandidate,
+  chooseTrainingCandidate,
+  getCompatibleSports,
+  isSameLocalDate,
+} from '../training-match.helpers';
 import { ActivityPipelineContext, ActivityProcessor } from '../types';
 
 @Injectable()
@@ -13,62 +21,51 @@ export class TrainingMatchProcessor implements ActivityProcessor {
   constructor(private readonly prisma: PrismaService) {}
 
   async run(ctx: ActivityPipelineContext) {
-    this.logger.log(
-      `Training match processor running for activity ${ctx.eventActivityId}`,
-    );
+    await this.matchActivity(ctx.eventActivityId);
+  }
 
-    // Load the imported activity
+  async matchActivity(
+    eventActivityId: number,
+    options: { dryRun?: boolean } = {},
+  ): Promise<'matched' | 'ambiguous' | 'no_candidate' | 'already_linked'> {
     const activity = await this.prisma.eventActivity.findUnique({
-      where: { eventActivityId: ctx.eventActivityId },
+      where: { eventActivityId },
       include: {
         event: {
           select: {
             eventId: true,
             startDate: true,
-            endDate: true,
             athleteId: true,
           },
         },
         relatedTraining: {
-          select: {
-            eventTrainingId: true,
-          },
+          select: { eventTrainingId: true },
         },
       },
     });
 
-    if (!activity || !activity.event) {
-      this.logger.warn(
-        `Activity ${ctx.eventActivityId} not found or has no event`,
-      );
-      return;
-    }
+    if (!activity?.event?.athleteId) return 'no_candidate';
+    if (activity.relatedTraining) return 'already_linked';
 
-    // Skip if activity is already linked to a training
-    if (activity.relatedTraining) {
-      this.logger.debug(
-        `Activity ${ctx.eventActivityId} is already linked to a training`,
-      );
-      return;
-    }
+    const activityInput: TrainingMatchActivity = {
+      sport: activity.sport,
+      distance: activity.distance,
+      movingTime: activity.movingTime,
+      startDate: activity.event.startDate,
+    };
+    const rangeStart = new Date(activity.event.startDate);
+    rangeStart.setUTCDate(rangeStart.getUTCDate() - 2);
+    const rangeEnd = new Date(activity.event.startDate);
+    rangeEnd.setUTCDate(rangeEnd.getUTCDate() + 2);
 
-    const activityDate = new Date(activity.event.startDate);
-    const dayStart = new Date(activityDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(activityDate);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    // Find all training sessions scheduled for the same day
     const trainingSessions = await this.prisma.eventTraining.findMany({
       where: {
+        sport: { in: getCompatibleSports(activity.sport) as SportType[] },
+        relatedActivityId: null,
         event: {
           athleteId: activity.event.athleteId,
-          startDate: {
-            gte: dayStart,
-            lte: dayEnd,
-          },
+          startDate: { gte: rangeStart, lte: rangeEnd },
         },
-        relatedActivityId: null, // Not already linked to an activity
       },
       include: {
         event: {
@@ -76,121 +73,86 @@ export class TrainingMatchProcessor implements ActivityProcessor {
             eventId: true,
             startDate: true,
             name: true,
+            trainingWeek: {
+              select: {
+                cycle: {
+                  select: {
+                    trainingPlan: { select: { timezone: true } },
+                  },
+                },
+              },
+            },
           },
         },
       },
     });
 
-    if (trainingSessions.length === 0) {
-      this.logger.debug(
-        `No unlinked training sessions found for activity ${ctx.eventActivityId} on ${activityDate.toISOString()}`,
-      );
-      return;
+    const candidates: TrainingMatchCandidate[] = trainingSessions
+      .map((training) => ({
+        eventTrainingId: training.eventTrainingId,
+        sport: training.sport,
+        goalDistance: training.goalDistance,
+        goalDuration: training.goalDuration,
+        startDate: training.event.startDate,
+        timezone:
+          training.event.trainingWeek?.cycle.trainingPlan?.timezone ?? 'UTC',
+      }))
+      .filter((candidate) => isSameLocalDate(activityInput, candidate));
+
+    const match = chooseTrainingCandidate(activityInput, candidates);
+    if (!match) {
+      return candidates.length > 1 ? 'ambiguous' : 'no_candidate';
     }
 
-    // Calculate match score for each training session
-    let bestMatch: {
-      training: (typeof trainingSessions)[0];
-      score: number;
-    } | null = null;
+    if (options.dryRun) return 'matched';
 
-    for (const training of trainingSessions) {
-      const score = this.calculateMatchScore(activity, training);
+    const updated = await this.prisma.eventTraining.updateMany({
+      where: {
+        eventTrainingId: match.candidate.eventTrainingId,
+        relatedActivityId: null,
+      },
+      data: { relatedActivityId: eventActivityId },
+    });
 
-      this.logger.debug(
-        `Training ${training.eventTrainingId} (${training.event.name}) match score: ${score}%`,
-      );
-
-      if (score >= TRAINING_MATCH_THRESHOLD) {
-        if (!bestMatch || score > bestMatch.score) {
-          bestMatch = { training, score };
-        }
-      }
-    }
-
-    // Link activity to best matching training
-    if (bestMatch) {
-      await this.prisma.eventTraining.update({
-        where: {
-          eventTrainingId: bestMatch.training.eventTrainingId,
-        },
-        data: {
-          relatedActivityId: ctx.eventActivityId,
-        },
-      });
-
+    if (updated.count === 1) {
       this.logger.log(
-        `✓ Activity ${ctx.eventActivityId} automatically linked to training "${bestMatch.training.event.name}" (score: ${bestMatch.score}%)`,
+        `Activity ${eventActivityId} linked to training ${match.candidate.eventTrainingId}`,
       );
-    } else {
-      this.logger.debug(
-        `No training session matched threshold (${TRAINING_MATCH_THRESHOLD}%) for activity ${ctx.eventActivityId}`,
-      );
+      return 'matched';
     }
+
+    return 'already_linked';
   }
 
-  /**
-   * Calculate match score between an activity and a training session
-   * Returns a percentage (0-100)
-   *
-   * Criteria:
-   * - Sport match: 40% weight
-   * - Duration match: 30% weight (if goal_duration specified)
-   * - Distance match: 30% weight (if goal_distance specified)
-   *
-   * If duration or distance are not specified in training, those points are redistributed
-   */
-  private calculateMatchScore(
-    activity: {
-      sport: string;
-      distance: number;
-      movingTime: number;
-    },
-    training: {
-      sport: string;
-      goalDistance: number | null;
-      goalDuration: number | null;
-    },
-  ): number {
-    let totalWeight = 0;
-    let achievedScore = 0;
+  async backfill(
+    athleteId: number,
+    options: { dryRun?: boolean } = {},
+  ): Promise<
+    Record<'matched' | 'ambiguous' | 'no_candidate' | 'already_linked', number>
+  > {
+    const activities = await this.prisma.eventActivity.findMany({
+      where: { event: { athleteId } },
+      select: { eventActivityId: true },
+      orderBy: { eventActivityId: 'asc' },
+    });
+    const result = {
+      matched: 0,
+      ambiguous: 0,
+      no_candidate: 0,
+      already_linked: 0,
+    } as Record<
+      'matched' | 'ambiguous' | 'no_candidate' | 'already_linked',
+      number
+    >;
 
-    // Sport matching (40% weight)
-    const sportWeight = 40;
-    totalWeight += sportWeight;
-    if (activity.sport === training.sport) {
-      achievedScore += sportWeight;
-    }
-
-    // Duration matching (30% weight if specified)
-    const durationWeight = 30;
-    if (training.goalDuration !== null && training.goalDuration > 0) {
-      totalWeight += durationWeight;
-      const durationRatio = Math.min(
-        activity.movingTime / training.goalDuration,
-        training.goalDuration / activity.movingTime,
+    for (const activity of activities) {
+      const outcome = await this.matchActivity(
+        activity.eventActivityId,
+        options,
       );
-      achievedScore += durationRatio * durationWeight;
+      result[outcome] += 1;
     }
 
-    // Distance matching (30% weight if specified)
-    const distanceWeight = 30;
-    if (training.goalDistance !== null && training.goalDistance > 0) {
-      totalWeight += distanceWeight;
-      const distanceRatio = Math.min(
-        activity.distance / training.goalDistance,
-        training.goalDistance / activity.distance,
-      );
-      achievedScore += distanceRatio * distanceWeight;
-    }
-
-    // If neither duration nor distance is specified, redistribute to sport
-    if (totalWeight === sportWeight) {
-      // Only sport was weighted, make it 100%
-      return activity.sport === training.sport ? 100 : 0;
-    }
-
-    // Calculate percentage
-    return Math.round((achievedScore / totalWeight) * 100);
+    return result;
   }
 }

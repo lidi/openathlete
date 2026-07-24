@@ -2,7 +2,7 @@ import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
 import { getDateLocale } from '@/utils/locales';
 
-import { EVENT_TYPE, endOfDay, startOfDay } from '@openathlete/shared';
+import { endOfDay, startOfDay } from '@openathlete/shared';
 
 import {
   Select,
@@ -94,12 +94,7 @@ export function CalendarBody() {
                 day={day}
                 events={events.filter(
                   (event) =>
-                    event.startDate.toDateString() === day.toDateString() &&
-                    !(
-                      (event.type === EVENT_TYPE.COMPETITION ||
-                        event.type === EVENT_TYPE.TRAINING) &&
-                      event.relatedActivity
-                    ),
+                    event.startDate.toDateString() === day.toDateString(),
                 )}
                 cycleSegments={calculateCyclesForDay(displayedCycles, day)}
               />
