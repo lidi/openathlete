@@ -1,22 +1,14 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useUserRoles } from '@/contexts/auth';
-import { SubscriptionSettingsPage } from '@/pages/dashboard/settings/subscription';
 import { m } from '@/paraglide/messages';
-import { isPaymentDisabled } from '@/utils/capacitor';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import { AthletesTab } from './athletes-tab';
-import { CoachesTab } from './coaches-tab';
 import { ConnectorsTab } from './connectors-tab';
-import { ContributeTab } from './contribute-tab';
 import { EquipmentTab } from './equipment-tab';
-import { InvitationsTab } from './invitations-tab';
 import { ProfileTab } from './profile-tab';
 import { TrainingZonesTab } from './training-zones-tab';
 
 export function SettingsView() {
-  const roles = useUserRoles();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabParam || 'connectors');
@@ -46,17 +38,6 @@ export function SettingsView() {
             <TabsTrigger value="training_zones">
               {m.training_zones()}
             </TabsTrigger>
-            {roles?.includes('COACH') && (
-              <TabsTrigger value="athletes">{m.athletes()}</TabsTrigger>
-            )}
-            {roles?.includes('ATHLETE') && (
-              <TabsTrigger value="coaches">{m.coaches()}</TabsTrigger>
-            )}
-            <TabsTrigger value="invitations">{m.invitations()}</TabsTrigger>
-            {!isPaymentDisabled() && (
-              <TabsTrigger value="subscription">{m.subscription()}</TabsTrigger>
-            )}
-            <TabsTrigger value="contribute">{m.contribute()}</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="connectors" className="mt-6">
@@ -70,23 +51,6 @@ export function SettingsView() {
         </TabsContent>
         <TabsContent value="training_zones" className="mt-6">
           <TrainingZonesTab />
-        </TabsContent>
-        <TabsContent value="athletes" className="mt-6">
-          <AthletesTab />
-        </TabsContent>
-        <TabsContent value="coaches" className="mt-6">
-          <CoachesTab />
-        </TabsContent>
-        <TabsContent value="invitations" className="mt-6">
-          <InvitationsTab />
-        </TabsContent>
-        {!isPaymentDisabled() && (
-          <TabsContent value="subscription" className="mt-6">
-            <SubscriptionSettingsPage />
-          </TabsContent>
-        )}
-        <TabsContent value="contribute" className="mt-6">
-          <ContributeTab />
         </TabsContent>
       </Tabs>
     </div>
