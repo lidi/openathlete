@@ -1162,6 +1162,60 @@ export class EventController {
     return this.eventService.listAvailableActivities(user, eventId);
   }
 
+  @UseGuards(AuthGuard('jwt'), UserTypeGuard)
+  @ApiBearerAuth()
+  @Post(':eventId/not-fulfilled')
+  @ApiOperation({
+    summary: 'Mark a planned training/competition as not done',
+    description:
+      'Marks a planned training or competition as explicitly not performed. Releases any linked activity, since a session cannot be both fulfilled and not done. Stored for later analytics.',
+  })
+  @ApiParam({
+    name: 'eventId',
+    type: Number,
+    description: 'ID of the training or competition event',
+    example: 1,
+  })
+  @ApiResponse({ status: 201, description: 'Marked as not done successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - eventId is not a training or competition event',
+  })
+  @ApiResponse({ status: 404, description: 'Not found - event not found' })
+  markNotFulfilled(
+    @JwtUser() user: AuthUser,
+    @Param('eventId', ParseIntPipe) eventId: Event['eventId'],
+  ) {
+    return this.eventService.markNotFulfilled(user, eventId, true);
+  }
+
+  @UseGuards(AuthGuard('jwt'), UserTypeGuard)
+  @ApiBearerAuth()
+  @Delete(':eventId/not-fulfilled')
+  @ApiOperation({
+    summary: 'Clear the "not done" mark on a planned training/competition',
+    description:
+      'Clears the explicit "not done" mark, returning the planned session to the pending (unfulfilled) state.',
+  })
+  @ApiParam({
+    name: 'eventId',
+    type: Number,
+    description: 'ID of the training or competition event',
+    example: 1,
+  })
+  @ApiResponse({ status: 200, description: 'Mark cleared successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - eventId is not a training or competition event',
+  })
+  @ApiResponse({ status: 404, description: 'Not found - event not found' })
+  unmarkNotFulfilled(
+    @JwtUser() user: AuthUser,
+    @Param('eventId', ParseIntPipe) eventId: Event['eventId'],
+  ) {
+    return this.eventService.markNotFulfilled(user, eventId, false);
+  }
+
   // ============================================================================
   // Workout-related routes
   // ============================================================================

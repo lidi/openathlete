@@ -18,6 +18,7 @@ import {
   Edit2,
   FileText,
   Trash2,
+  XCircle,
 } from 'lucide-react';
 import { usePostHog } from 'posthog-js/react';
 import { useMemo, useState } from 'react';
@@ -129,6 +130,27 @@ function FulfilsLine({
         {m.fulfils()}: {fulfils.name}
       </span>
     </button>
+  );
+}
+
+/**
+ * Indicator shown on a planned session the athlete explicitly marked as not
+ * done. Kept lightweight; the card still opens the planned session on click.
+ */
+function NotDoneLine({ event }: { event: Event }) {
+  if (
+    (event.type !== EVENT_TYPE.TRAINING &&
+      event.type !== EVENT_TYPE.COMPETITION) ||
+    !event.notFulfilled
+  ) {
+    return null;
+  }
+
+  return (
+    <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+      <XCircle className="h-3 w-3 shrink-0 text-red-500" />
+      <span className="truncate">{m.not_done()}</span>
+    </div>
   );
 }
 
@@ -269,6 +291,7 @@ export function CalendarEvent({ event, wrapped }: P) {
               <div className="px-1 w-full">
                 <EventSecondLine event={event} />
                 <FulfilsLine event={event} onOpen={openEventDetails} />
+                <NotDoneLine event={event} />
               </div>
             </div>
           </CalendarEventTooltipWrapper>

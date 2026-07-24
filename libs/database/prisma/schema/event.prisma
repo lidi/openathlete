@@ -71,6 +71,8 @@ model EventTraining {
   goalRpe           Float?    @map("goal_rpe")
   /// Estimated training load (TRIMP) for this session (optional)
   estimatedLoad     Float?    @map("estimated_load")
+  /// Explicitly marked by the athlete as not done (planned but not performed)
+  notFulfilled      Boolean   @default(false) @map("not_fulfilled")
 
   // relationships
   event             Event          @relation(fields: [eventId], references: [eventId])
@@ -104,6 +106,8 @@ model EventCompetition {
   goalDuration      Int?      @map("goal_duration")
   /// Goal Rate of Perceived Exertion (0.0-1.0 scale, optional)
   goalRpe           Float?    @map("goal_rpe")
+  /// Explicitly marked by the athlete as not done (planned but not performed)
+  notFulfilled      Boolean   @default(false) @map("not_fulfilled")
 
   // relationships
   event             Event          @relation(fields: [eventId], references: [eventId])

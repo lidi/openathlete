@@ -455,6 +455,57 @@ export const useUnsetRelatedActivityMutation = (
   });
 };
 
+export const useMarkNotFulfilledMutation = (
+  opt?: MutationOptions<
+    Awaited<ReturnType<typeof EventAPI.markNotFulfilled>>,
+    Error,
+    Parameters<typeof EventAPI.markNotFulfilled>[0]
+  >,
+) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...opt,
+    mutationFn: EventAPI.markNotFulfilled,
+    onSuccess: (data, variables, onMutateResult, context) => {
+      if (opt?.onSuccess)
+        opt.onSuccess(data, variables, onMutateResult, context);
+      queryClient.invalidateQueries({
+        queryKey: [eventKeys.getEvent, variables],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [eventKeys.getMyEvents],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [eventKeys.getAvailableActivities],
+      });
+    },
+  });
+};
+
+export const useUnmarkNotFulfilledMutation = (
+  opt?: MutationOptions<
+    Awaited<ReturnType<typeof EventAPI.unmarkNotFulfilled>>,
+    Error,
+    Parameters<typeof EventAPI.unmarkNotFulfilled>[0]
+  >,
+) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...opt,
+    mutationFn: EventAPI.unmarkNotFulfilled,
+    onSuccess: (data, variables, onMutateResult, context) => {
+      if (opt?.onSuccess)
+        opt.onSuccess(data, variables, onMutateResult, context);
+      queryClient.invalidateQueries({
+        queryKey: [eventKeys.getEvent, variables],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [eventKeys.getMyEvents],
+      });
+    },
+  });
+};
+
 export const useGetMyIcalCalendarSecretQuery = (
   opt?: QueryOptions<
     Awaited<ReturnType<typeof EventAPI.getMyIcalCalendarSecret>>

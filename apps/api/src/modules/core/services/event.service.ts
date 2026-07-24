@@ -978,6 +978,8 @@ export class EventService {
           relatedActivity: {
             connect: { eventActivityId: eventActivity.eventActivityId },
           },
+          // Fulfilling a session means it was done — clear any "not done" mark.
+          notFulfilled: false,
         },
       });
     } else if (event.type === 'TRAINING') {
@@ -987,6 +989,58 @@ export class EventService {
           relatedActivity: {
             connect: { eventActivityId: eventActivity.eventActivityId },
           },
+          notFulfilled: false,
+        },
+      });
+    }
+  }
+
+  /**
+   * Explicitly mark a planned training/competition as not done (or clear that
+   * mark). Persisted for later analytics on planned vs completed sessions.
+   * Marking as not done releases any linked activity — a session cannot be both
+   * fulfilled and not done.
+   */
+  async markNotFulfilled(
+    user: AuthUser,
+    eventId: Event['eventId'],
+    notFulfilled: boolean,
+  ): Promise<void> {
+    const ability = await this.abilities.getFor({ user });
+
+    const event = await this.prisma.event.findFirst({
+      where: {
+        AND: [{ eventId: eventId }, accessibleBy(ability, 'update').Event],
+      },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    if (
+      event.type !== EventType.TRAINING &&
+      event.type !== EventType.COMPETITION
+    ) {
+      throw new BadRequestException(
+        'eventId must refer to a training or a competition',
+      );
+    }
+
+    if (event.type === EventType.COMPETITION) {
+      await this.prisma.eventCompetition.update({
+        where: { eventId: eventId },
+        data: {
+          notFulfilled,
+          ...(notFulfilled ? { relatedActivity: { disconnect: true } } : {}),
+        },
+      });
+    } else {
+      await this.prisma.eventTraining.update({
+        where: { eventId: eventId },
+        data: {
+          notFulfilled,
+          ...(notFulfilled ? { relatedActivity: { disconnect: true } } : {}),
         },
       });
     }

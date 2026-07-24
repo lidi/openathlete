@@ -1,10 +1,12 @@
 import {
   useGetAvailableActivitiesQuery,
+  useMarkNotFulfilledMutation,
   useSetRelatedActivityMutation,
+  useUnmarkNotFulfilledMutation,
   useUnsetRelatedActivityMutation,
 } from '@/api/event';
 import { m } from '@/paraglide/messages';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, XCircle } from 'lucide-react';
 import { useState } from 'react';
 
 import {
@@ -35,6 +37,8 @@ interface P {
 export function TrainingCompetitionDetails({ event }: P) {
   const setRelatedActivityMutation = useSetRelatedActivityMutation();
   const unsetRelatedActivityMutation = useUnsetRelatedActivityMutation();
+  const markNotFulfilledMutation = useMarkNotFulfilledMutation();
+  const unmarkNotFulfilledMutation = useUnmarkNotFulfilledMutation();
   const { data: availableActivities } = useGetAvailableActivitiesQuery(
     event.eventId,
   );
@@ -48,9 +52,12 @@ export function TrainingCompetitionDetails({ event }: P) {
       activity.type === EVENT_TYPE.ACTIVITY,
   );
   const isFulfilled = !!linkedActivityId;
+  const isNotDone = event.notFulfilled && !isFulfilled;
   const isMutating =
     setRelatedActivityMutation.isPending ||
-    unsetRelatedActivityMutation.isPending;
+    unsetRelatedActivityMutation.isPending ||
+    markNotFulfilledMutation.isPending ||
+    unmarkNotFulfilledMutation.isPending;
 
   const isTraining = event.type === EVENT_TYPE.TRAINING;
   return (
@@ -143,6 +150,23 @@ export function TrainingCompetitionDetails({ event }: P) {
                     </Button>
                   </div>
                 </div>
+              ) : isNotDone && !changing ? (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <XCircle className="h-5 w-5 shrink-0 text-red-500" />
+                    <span className="font-medium">{m.not_done()}</span>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      unmarkNotFulfilledMutation.mutate(event.eventId);
+                    }}
+                    isLoading={isMutating}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {m.clear()}
+                  </Button>
+                </div>
               ) : (
                 <div className="flex flex-col gap-2">
                   <SelectEvent
@@ -165,13 +189,24 @@ export function TrainingCompetitionDetails({ event }: P) {
                       </div>
                     )}
                   />
-                  {isFulfilled && changing && (
+                  {changing ? (
                     <Button
                       onClick={() => setChanging(false)}
                       variant="outline"
                       className="w-full"
                     >
                       {m.cancel()}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => {
+                        markNotFulfilledMutation.mutate(event.eventId);
+                      }}
+                      isLoading={isMutating}
+                      variant="ghost"
+                      className="w-full text-muted-foreground"
+                    >
+                      {m.mark_as_not_done()}
                     </Button>
                   )}
                 </div>

@@ -12,6 +12,8 @@ export const eventKeys = {
   setRelatedActivity: 'EventAPI.setRelatedActivity',
   unsetRelatedActivity: 'EventAPI.unsetRelatedActivity',
   getAvailableActivities: 'EventAPI.getAvailableActivities',
+  markNotFulfilled: 'EventAPI.markNotFulfilled',
+  unmarkNotFulfilled: 'EventAPI.unmarkNotFulfilled',
   getMyIcalCalendarSecret: 'EventAPI.getMyIcalCalendarSecret',
   duplicateEvent: 'EventAPI.duplicateEvent',
   reorderWorkoutSteps: 'EventAPI.reorderWorkoutSteps',

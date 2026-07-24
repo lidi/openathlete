@@ -131,6 +131,14 @@ export class EventAPI {
     await client.delete(routes.event.unsetRelatedActivity(eventId));
   }
 
+  static async markNotFulfilled(eventId: Event['eventId']): Promise<void> {
+    await client.post(routes.event.markNotFulfilled(eventId));
+  }
+
+  static async unmarkNotFulfilled(eventId: Event['eventId']): Promise<void> {
+    await client.delete(routes.event.unmarkNotFulfilled(eventId));
+  }
+
   static async getMyIcalCalendarSecret(): Promise<string> {
     const res = await client.get(routes.event.getMyIcalCalendarSecret);
     return res.data;
