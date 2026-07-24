@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { ConnectorsTab } from './connectors-tab';
 import { EquipmentTab } from './equipment-tab';
+import { ImportPlanTab } from './import-plan-tab';
 import { ProfileTab } from './profile-tab';
 import { TrainingZonesTab } from './training-zones-tab';
 
@@ -35,6 +36,7 @@ export function SettingsView() {
             <TabsTrigger value="connectors">{m.connectors()}</TabsTrigger>
             <TabsTrigger value="profile">{m.profile()}</TabsTrigger>
             <TabsTrigger value="equipment">{m.equipment()}</TabsTrigger>
+            <TabsTrigger value="import_plan">Import plan</TabsTrigger>
             <TabsTrigger value="training_zones">
               {m.training_zones()}
             </TabsTrigger>
@@ -48,6 +50,9 @@ export function SettingsView() {
         </TabsContent>
         <TabsContent value="equipment" className="mt-6">
           <EquipmentTab />
+        </TabsContent>
+        <TabsContent value="import_plan" className="mt-6">
+          <ImportPlanTab />
         </TabsContent>
         <TabsContent value="training_zones" className="mt-6">
           <TrainingZonesTab />

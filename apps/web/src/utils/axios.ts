@@ -226,6 +226,9 @@ export const routes = {
     getPlan: (token: string) => `/seo-plan/${token}`,
     import: (token: string) => `/seo-plan/${token}/import`,
   },
+  trainingPlan: {
+    import: '/training-plan/import',
+  },
 } as const;
 
 const client = axios.create({

@@ -21,6 +21,7 @@ import { ProgressionController } from './controllers/progression.controller';
 import { RecordController } from './controllers/record.controller';
 import { StatisticsController } from './controllers/statistics.controller';
 import { TrainingLoadController } from './controllers/training-load.controller';
+import { TrainingPlanController } from './controllers/training-plan.controller';
 import { TrainingZoneController } from './controllers/training-zone.controller';
 import { ActivityFileParserService } from './helpers/activity-file-parser.service';
 import {
@@ -80,6 +81,7 @@ import { WeatherService } from './services/weather/weather.service';
     MetricController,
     TrainingZoneController,
     TrainingLoadController,
+    TrainingPlanController,
     CycleController,
   ],
   providers: [

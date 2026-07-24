@@ -22,8 +22,12 @@ model TrainingPlan {
   description String?
   /// Training goal (e.g., "Finish UTMB 2025", "Sub-3:30 marathon")
   goal        String
+  /// External source key for imported plans
+  sourceKey           String? @map("source_key")
+  /// Source schema version for imported plans
+  sourceSchemaVersion String? @map("source_schema_version")
   /// Plan start date
-  startDate   DateTime   @map("start_date")
+  startDate DateTime @map("start_date")
   /// Plan end date
   endDate     DateTime   @map("end_date")
   /// Plan status: DRAFT, ACTIVE, COMPLETED, or ARCHIVED
@@ -39,6 +43,7 @@ model TrainingPlan {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([athleteId, status])
+  @@unique([athleteId, sourceKey])
   @@map("training_plan")
 }
 
