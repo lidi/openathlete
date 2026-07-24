@@ -98,36 +98,35 @@ function EventSecondLine({ event }: { event: Event }) {
   }
 }
 
-function CompletedActivityLine({
+/**
+ * Lightweight indicator shown on a completed activity card when it fulfils a
+ * planned session. The activity card itself stays the primary object; this only
+ * labels it and links to the planned session so the athlete can change/unlink.
+ */
+function FulfilsLine({
   event,
   onOpen,
 }: {
   event: Event;
   onOpen: (eventId: number) => void;
 }) {
-  if (event.type !== EVENT_TYPE.TRAINING || !event.relatedActivity) {
+  if (event.type !== EVENT_TYPE.ACTIVITY || !event.fulfils) {
     return null;
   }
 
-  const activity = event.relatedActivity;
+  const fulfils = event.fulfils;
   return (
     <button
       type="button"
       className="mt-1 flex w-full items-start gap-1 text-left text-xs text-muted-foreground hover:text-foreground"
       onClick={(clickEvent) => {
         clickEvent.stopPropagation();
-        onOpen(activity.eventId);
+        onOpen(fulfils.eventId);
       }}
     >
       <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-green-600" />
       <span className="min-w-0 truncate">
-        {activity.name}
-        <span className="ml-1">
-          {formatDuration(activity.movingTime)}
-          {activity.distance > 0
-            ? ` · ${formatDistance(activity.distance, 'km')} km`
-            : ''}
-        </span>
+        {m.fulfils()}: {fulfils.name}
       </span>
     </button>
   );
@@ -269,10 +268,7 @@ export function CalendarEvent({ event, wrapped }: P) {
               </div>
               <div className="px-1 w-full">
                 <EventSecondLine event={event} />
-                <CompletedActivityLine
-                  event={event}
-                  onOpen={openEventDetails}
-                />
+                <FulfilsLine event={event} onOpen={openEventDetails} />
               </div>
             </div>
           </CalendarEventTooltipWrapper>

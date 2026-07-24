@@ -4,19 +4,6 @@ export const EVENT_INCLUDES = {
       relatedActivity: {
         select: {
           eventId: true,
-          distance: true,
-          movingTime: true,
-          sport: true,
-          event: {
-            select: {
-              eventId: true,
-              startDate: true,
-              endDate: true,
-              name: true,
-              type: true,
-              athleteId: true,
-            },
-          },
         },
       },
       workout: {
@@ -123,6 +110,23 @@ export const EVENT_INCLUDES = {
       relatedTraining: {
         select: {
           eventTrainingId: true,
+          event: {
+            select: {
+              eventId: true,
+              name: true,
+            },
+          },
+        },
+      },
+      relatedCompetition: {
+        select: {
+          eventCompetitionId: true,
+          event: {
+            select: {
+              eventId: true,
+              name: true,
+            },
+          },
         },
       },
       feedbackQuestions: {

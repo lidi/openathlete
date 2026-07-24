@@ -3,6 +3,8 @@ import { m } from '@/paraglide/messages';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { EVENT_TYPE } from '@openathlete/shared';
+
 import { CalendarMobileDay } from './calendar-mobile-day';
 import { CalendarMobileScrollToToday } from './calendar-mobile-scroll-to-today';
 import { CalendarMobileWeekHeader } from './calendar-mobile-week-header';
@@ -74,7 +76,13 @@ export function CalendarMobileList({ isLoading }: P) {
         return 272;
       }
       const dayEvents = events.filter(
-        (event) => event.startDate.toDateString() === item.day.toDateString(),
+        (event) =>
+          event.startDate.toDateString() === item.day.toDateString() &&
+          !(
+            (event.type === EVENT_TYPE.COMPETITION ||
+              event.type === EVENT_TYPE.TRAINING) &&
+            event.relatedActivity
+          ),
       );
       const cycleSegments = calculateCyclesForDay(cycles, item.day);
       const dayHeaderHeight = 56;
@@ -335,7 +343,12 @@ export function CalendarMobileList({ isLoading }: P) {
 
           const dayEvents = events.filter(
             (event) =>
-              event.startDate.toDateString() === item.day.toDateString(),
+              event.startDate.toDateString() === item.day.toDateString() &&
+              !(
+                (event.type === EVENT_TYPE.COMPETITION ||
+                  event.type === EVENT_TYPE.TRAINING) &&
+                event.relatedActivity
+              ),
           );
           const cycleSegments = calculateCyclesForDay(cycles, item.day);
 

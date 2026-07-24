@@ -23,6 +23,7 @@ interface P {
   value?: number;
   displayRow?: (event: Event) => ReactNode | string;
   filter?: (event: Event, events: Event[]) => boolean;
+  placeholder?: string;
 }
 
 export function SelectEvent({
@@ -32,6 +33,7 @@ export function SelectEvent({
   onChange,
   filter,
   displayRow,
+  placeholder,
 }: P) {
   const [open, setOpen] = useState(false);
 
@@ -50,7 +52,7 @@ export function SelectEvent({
             ? displayRow
               ? displayRow(currentEvent)
               : currentEvent.name
-            : m.select_event()}
+            : (placeholder ?? m.select_event())}
           <ChevronsUpDown className="opacity-50" />
         </Button>
       </PopoverTrigger>

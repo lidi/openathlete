@@ -1125,6 +1125,43 @@ export class EventController {
     return this.eventService.unsetRelatedActivity(user, eventId);
   }
 
+  @UseGuards(AuthGuard('jwt'), UserTypeGuard)
+  @ApiBearerAuth()
+  @Get(':eventId/available-activities')
+  @ApiOperation({
+    summary: 'List activities available to fulfil a training/competition',
+    description:
+      "Returns the athlete's completed activities that can be linked to the given planned training or competition: every activity not already fulfilling another planned session, plus the one currently linked to this event. No sport/date/duration filtering is applied.",
+  })
+  @ApiParam({
+    name: 'eventId',
+    type: Number,
+    description: 'ID of the training or competition event',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Available activities returned successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - eventId is not a training or competition event',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid or missing authentication token',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Not found - event not found',
+  })
+  listAvailableActivities(
+    @JwtUser() user: AuthUser,
+    @Param('eventId', ParseIntPipe) eventId: Event['eventId'],
+  ) {
+    return this.eventService.listAvailableActivities(user, eventId);
+  }
+
   // ============================================================================
   // Workout-related routes
   // ============================================================================

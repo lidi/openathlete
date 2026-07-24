@@ -110,6 +110,12 @@ export type ActivityEvent = Omit<
     equipment?: Equipment;
     segments?: ActivitySegment[];
     feedbackQuestions?: ActivityFeedbackQuestion[];
+    /**
+     * Lightweight metadata about the planned session this completed activity
+     * fulfils, when the athlete has linked it. The activity itself remains the
+     * primary calendar object; this only supplies a label/navigation target.
+     */
+    fulfils?: { eventId: number; name: string };
   };
 
 export type Event =

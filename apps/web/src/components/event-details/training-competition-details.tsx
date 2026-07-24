@@ -1,14 +1,19 @@
 import {
+  useGetAvailableActivitiesQuery,
   useSetRelatedActivityMutation,
   useUnsetRelatedActivityMutation,
 } from '@/api/event';
 import { m } from '@/paraglide/messages';
+import { CheckCircle2 } from 'lucide-react';
+import { useState } from 'react';
 
 import {
+  ActivityEvent,
   CompetitionEvent,
   EVENT_TYPE,
   TrainingEvent,
   formatDistance,
+  formatDuration,
 } from '@openathlete/shared';
 
 import { useCalendarContext } from '../calendar/hooks/use-calendar-context';
@@ -30,7 +35,22 @@ interface P {
 export function TrainingCompetitionDetails({ event }: P) {
   const setRelatedActivityMutation = useSetRelatedActivityMutation();
   const unsetRelatedActivityMutation = useUnsetRelatedActivityMutation();
-  const { events, openEventDetails } = useCalendarContext();
+  const { data: availableActivities } = useGetAvailableActivitiesQuery(
+    event.eventId,
+  );
+  const { openEventDetails } = useCalendarContext();
+  const [changing, setChanging] = useState(false);
+
+  const linkedActivityId = event.relatedActivity?.eventId;
+  const linkedActivity = availableActivities?.find(
+    (activity): activity is ActivityEvent =>
+      activity.eventId === linkedActivityId &&
+      activity.type === EVENT_TYPE.ACTIVITY,
+  );
+  const isFulfilled = !!linkedActivityId;
+  const isMutating =
+    setRelatedActivityMutation.isPending ||
+    unsetRelatedActivityMutation.isPending;
 
   const isTraining = event.type === EVENT_TYPE.TRAINING;
   return (
@@ -74,75 +94,88 @@ export function TrainingCompetitionDetails({ event }: P) {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>{m.related_activity()}</CardTitle>
+              <CardTitle>{m.fulfilled_by()}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <SelectEvent
-                    data={events}
-                    value={event.relatedActivity?.eventId}
-                    onChange={(activityId) => {
-                      setRelatedActivityMutation.mutate({
-                        eventId: event.eventId,
-                        activityId,
-                      });
-                    }}
-                    className="flex-1 min-w-0"
-                    filter={(e, events) => {
-                      if (e.type !== EVENT_TYPE.ACTIVITY) return false;
-                      const startFilter = new Date(event.startDate);
-                      startFilter.setDate(startFilter.getDate() - 3);
-                      const endFilter = new Date(event.endDate);
-                      endFilter.setDate(endFilter.getDate() + 3);
-                      const isInRelatedActivity = events.some(
-                        (relatedEvent) =>
-                          (relatedEvent.type === EVENT_TYPE.TRAINING ||
-                            relatedEvent.type === EVENT_TYPE.COMPETITION) &&
-                          relatedEvent.relatedActivity?.eventId === e.eventId,
-                      );
-                      return (
-                        startFilter.getTime() < e.startDate.getTime() &&
-                        endFilter.getTime() > e.endDate.getTime() &&
-                        !isInRelatedActivity
-                      );
-                    }}
-                    displayRow={(e) => (
-                      <div>
-                        {e.name}{' '}
-                        {e.type === EVENT_TYPE.ACTIVITY
-                          ? `(${formatDistance(e.distance)} km)`
-                          : ''}
+              {isFulfilled && !changing ? (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {linkedActivity?.name ?? ''}
                       </div>
-                    )}
-                  />
-                  {!!event.relatedActivity?.eventId && (
+                      {linkedActivity && (
+                        <div className="text-sm text-muted-foreground">
+                          {formatDuration(linkedActivity.movingTime)}
+                          {linkedActivity.distance > 0
+                            ? ` · ${formatDistance(linkedActivity.distance)} km`
+                            : ''}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      onClick={() => {
+                        openEventDetails(linkedActivityId!);
+                      }}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      {m.view_workout()}
+                    </Button>
+                    <Button
+                      onClick={() => setChanging(true)}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      {m.change()}
+                    </Button>
                     <Button
                       onClick={() => {
                         unsetRelatedActivityMutation.mutate(event.eventId);
                       }}
-                      isLoading={
-                        unsetRelatedActivityMutation.isPending ||
-                        setRelatedActivityMutation.isPending
-                      }
-                      className="w-full sm:w-auto flex-shrink-0"
+                      isLoading={isMutating}
+                      className="flex-1"
                     >
-                      {m.remove()}
+                      {m.unlink()}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <SelectEvent
+                    data={availableActivities}
+                    value={linkedActivityId}
+                    onChange={(activityId) => {
+                      setRelatedActivityMutation.mutate(
+                        { eventId: event.eventId, activityId },
+                        { onSuccess: () => setChanging(false) },
+                      );
+                    }}
+                    className="w-full min-w-0"
+                    placeholder={m.select_completed_workout()}
+                    displayRow={(e) => (
+                      <div className="truncate">
+                        {e.name}
+                        {e.type === EVENT_TYPE.ACTIVITY && e.distance > 0
+                          ? ` (${formatDistance(e.distance)} km)`
+                          : ''}
+                      </div>
+                    )}
+                  />
+                  {isFulfilled && changing && (
+                    <Button
+                      onClick={() => setChanging(false)}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      {m.cancel()}
                     </Button>
                   )}
                 </div>
-                {!!event.relatedActivity?.eventId && (
-                  <Button
-                    onClick={() => {
-                      openEventDetails(event.relatedActivity!.eventId);
-                    }}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    {m.view_activity()}
-                  </Button>
-                )}
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>

@@ -116,31 +116,38 @@ export class EventService {
   ) {
     const { competition, training, note, activity, ...rest } = event;
 
-    const trainingWithActivity = training as EventTraining & {
-      relatedActivity?: EventActivity & {
-        event?: Pick<Event, 'name' | 'startDate' | 'endDate' | 'athleteId'>;
+    // A completed activity may fulfil one planned training or competition. We
+    // expose only lightweight fulfilment metadata (id + name) so the calendar
+    // can label the real activity card, without ever replacing the activity.
+    const activityWithFulfilment = activity as
+      | (NonNullable<typeof activity> & {
+          relatedTraining?: { event?: Pick<Event, 'eventId' | 'name'> } | null;
+          relatedCompetition?: {
+            event?: Pick<Event, 'eventId' | 'name'>;
+          } | null;
+        })
+      | null;
+
+    let activityDto: Record<string, unknown> | undefined;
+    if (activityWithFulfilment) {
+      const { relatedTraining, relatedCompetition, ...activityRest } =
+        activityWithFulfilment;
+      const fulfilledPlan =
+        relatedTraining?.event ?? relatedCompetition?.event ?? undefined;
+      activityDto = {
+        ...activityRest,
+        fulfils: fulfilledPlan
+          ? { eventId: fulfilledPlan.eventId, name: fulfilledPlan.name }
+          : undefined,
       };
-    };
-    const relatedActivity = trainingWithActivity?.relatedActivity
-      ? (() => {
-          const relation = trainingWithActivity.relatedActivity!;
-          return {
-            ...relation,
-            name: relation.event?.name ?? '',
-            startDate: relation.event?.startDate ?? rest.startDate,
-            endDate: relation.event?.endDate ?? rest.endDate,
-            athleteId: relation.event?.athleteId ?? rest.athleteId,
-            type: EventType.ACTIVITY,
-          };
-        })()
-      : undefined;
+    }
 
     return {
       ...rest,
-      ...(training ? { ...training, relatedActivity } : {}),
+      ...(training ? { ...training } : {}),
       ...(competition ? { ...competition } : {}),
       ...(note ? { ...note } : {}),
-      ...(activity ? { ...activity } : {}),
+      ...(activityDto ? activityDto : {}),
     };
   }
 
@@ -264,7 +271,7 @@ export class EventService {
           }
         : {};
 
-    const events = await this.prisma.event.findMany({
+    return this.prisma.event.findMany({
       where: {
         AND: [
           accessibleBy(ability, 'read').Event,
@@ -275,13 +282,6 @@ export class EventService {
         ],
       },
       include: EVENT_INCLUDES,
-    });
-
-    return events.filter((event) => {
-      const activity = event.activity as
-        | (EventActivity & { relatedTraining?: unknown })
-        | null;
-      return !activity?.relatedTraining;
     });
   }
 
@@ -1019,6 +1019,72 @@ export class EventService {
         data: { relatedActivity: { disconnect: true } },
       });
     }
+  }
+
+  /**
+   * List completed activities the athlete can use to fulfil the given planned
+   * training/competition. Returns every one of the athlete's activities that is
+   * not already fulfilling another planned session, plus the one currently
+   * linked to this event (so it stays selectable). No sport/date/duration
+   * filtering — the user decides which activity fulfilled the session.
+   */
+  async listAvailableActivities(user: AuthUser, eventId: Event['eventId']) {
+    const ability = await this.abilities.getFor({ user });
+
+    const plannedEvent = await this.prisma.event.findFirst({
+      where: {
+        AND: [{ eventId: eventId }, accessibleBy(ability, 'read').Event],
+      },
+      include: {
+        training: { select: { relatedActivityId: true } },
+        competition: { select: { relatedActivityId: true } },
+      },
+    });
+
+    if (!plannedEvent) {
+      throw new NotFoundException('Event not found');
+    }
+
+    if (
+      plannedEvent.type !== EventType.TRAINING &&
+      plannedEvent.type !== EventType.COMPETITION
+    ) {
+      throw new BadRequestException(
+        'eventId must refer to a training or a competition',
+      );
+    }
+
+    const currentActivityId =
+      plannedEvent.training?.relatedActivityId ??
+      plannedEvent.competition?.relatedActivityId ??
+      null;
+
+    const events = await this.prisma.event.findMany({
+      where: {
+        AND: [
+          accessibleBy(ability, 'read').Event,
+          { athleteId: plannedEvent.athleteId },
+          { type: EventType.ACTIVITY },
+          {
+            activity: {
+              OR: [
+                {
+                  relatedTraining: { is: null },
+                  relatedCompetition: { is: null },
+                },
+                ...(currentActivityId !== null
+                  ? [{ eventActivityId: currentActivityId }]
+                  : []),
+              ],
+            },
+          },
+        ],
+      },
+      include: EVENT_INCLUDES,
+      orderBy: { startDate: 'desc' },
+    });
+
+    return events.map((event) => this.prismaEventToEvent(event));
   }
 
   async getIcalCalendar(base64Secret: string): Promise<string> {

@@ -44,6 +44,8 @@ export const routes = {
     ) => `/event/${eventId}/related-activity/${activityId}`,
     unsetRelatedActivity: (eventId: Event['eventId']) =>
       `/event/${eventId}/related-activity`,
+    getAvailableActivities: (eventId: Event['eventId']) =>
+      `/event/${eventId}/available-activities`,
     getMyIcalCalendarSecret: '/event/ical/secret',
     getUnvalidatedSessions: (
       athleteId: number,

@@ -279,6 +279,18 @@ export const useGetEventQuery = (
     queryKey: [eventKeys.getEvent, eventId],
   });
 
+export const useGetAvailableActivitiesQuery = (
+  eventId: number,
+  opt?: QueryOptions<
+    Awaited<ReturnType<typeof EventAPI.getAvailableActivities>>
+  >,
+) =>
+  useQuery({
+    ...opt,
+    queryFn: () => EventAPI.getAvailableActivities(eventId),
+    queryKey: [eventKeys.getAvailableActivities, eventId],
+  });
+
 export const useGetEventStreamQuery = (
   eventId: number,
   resolution: number,
@@ -409,6 +421,9 @@ export const useSetRelatedActivityMutation = (
       queryClient.invalidateQueries({
         queryKey: [eventKeys.getMyEvents],
       });
+      queryClient.invalidateQueries({
+        queryKey: [eventKeys.getAvailableActivities],
+      });
     },
   });
 };
@@ -432,6 +447,9 @@ export const useUnsetRelatedActivityMutation = (
       });
       queryClient.invalidateQueries({
         queryKey: [eventKeys.getMyEvents],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [eventKeys.getAvailableActivities],
       });
     },
   });

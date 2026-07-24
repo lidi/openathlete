@@ -80,6 +80,14 @@ export class EventAPI {
     return mapEvent(res.data);
   }
 
+  static async getAvailableActivities(
+    eventId: Event['eventId'],
+  ): Promise<Event[]> {
+    const res = await client.get(routes.event.getAvailableActivities(eventId));
+    const data = res.data as Event[];
+    return data.map((event) => mapEvent(event));
+  }
+
   static async getEventStream(
     eventId: Event['eventId'],
     resolution: number,
