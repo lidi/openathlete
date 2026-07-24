@@ -111,6 +111,13 @@ export const routes = {
     importAllActivities: (provider: ConnectorProvider) =>
       `/provider/${provider.toLowerCase()}/import-all`,
   },
+  googleDrive: {
+    getOAuthUri: '/google-drive/uri',
+    setOAuthToken: '/google-drive/token',
+    getStatus: '/google-drive/status',
+    importNow: '/google-drive/import-now',
+    disconnect: '/google-drive/disconnect',
+  },
   athlete: {
     getMyAthlete: '/athlete/me',
     getCoachedAthletes: '/athlete/coached',

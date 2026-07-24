@@ -14,6 +14,7 @@ import { CycleController } from './controllers/cycle.controller';
 import { EquipmentController } from './controllers/equipment.controller';
 import { EventTemplateFolderController } from './controllers/event-template-folder.controller';
 import { EventTemplateController } from './controllers/event-template.controller';
+import { GoogleDriveController } from './controllers/google-drive.controller';
 import { InjuryController } from './controllers/injury.controller';
 import { MetricController } from './controllers/metric.controller';
 import { ProgressionController } from './controllers/progression.controller';
@@ -30,12 +31,14 @@ import {
 } from './services';
 import { ActivityDetailService } from './services/activity-detail.service';
 import { ActivityFeedbackService } from './services/activity-feedback.service';
+import { ActivityFileImportService } from './services/activity-file-import.service';
 import { AthleteSettingsService } from './services/athlete-settings.service';
 import { AthleteService } from './services/athlete.service';
 import { CoachService } from './services/coach.service';
 import { EquipmentService } from './services/equipment.service';
 import { EventTemplateFolderService } from './services/event-template-folder.service';
 import { EventTemplateService } from './services/event-template.service';
+import { GoogleDriveService } from './services/google-drive.service';
 import { InjuryService } from './services/injury.service';
 import { MetricService } from './services/metric.service';
 import { ActivityPipelineService } from './services/pipeline/activity-pipeline.service';
@@ -64,6 +67,7 @@ import { WeatherService } from './services/weather/weather.service';
   controllers: [
     ActivityFeedbackController,
     EventController,
+    GoogleDriveController,
     EventTemplateController,
     EventTemplateFolderController,
     AthleteController,
@@ -99,6 +103,8 @@ import { WeatherService } from './services/weather/weather.service';
     CycleService,
     WeatherService,
     ActivityFeedbackService,
+    ActivityFileImportService,
+    GoogleDriveService,
     OpenMeteoWeatherProvider,
     ActivityDetailService,
     ActivityFileParserService,

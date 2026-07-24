@@ -236,7 +236,21 @@ export class FitParserStrategy implements ActivityParser {
       totalDurationSeconds,
     );
 
-    return { stream: result, segments };
+    return {
+      stream: result,
+      segments,
+      startDate:
+        startTimestamp !== null && Number.isFinite(startTimestamp)
+          ? new Date(startTimestamp)
+          : undefined,
+      endDate:
+        startTimestamp !== null &&
+        totalDurationSeconds !== null &&
+        Number.isFinite(startTimestamp) &&
+        Number.isFinite(totalDurationSeconds)
+          ? new Date(startTimestamp + totalDurationSeconds * 1000)
+          : undefined,
+    };
   }
 
   private buildFitSegments(

@@ -5,11 +5,20 @@ export interface FitFileSegment {
   endTimeSeconds: number;
   orderIndex: number;
   name?: string;
+  averageHeartrate?: number;
+  maxHeartrate?: number;
 }
 
 export interface ActivityParseResult {
   stream: ActivityStream;
   segments?: FitFileSegment[];
+  startDate?: Date;
+  endDate?: Date;
+  name?: string;
+  description?: string;
+  averageHeartrate?: number;
+  maxHeartrate?: number;
+  kilojoules?: number;
 }
 
 export interface ActivityParser {

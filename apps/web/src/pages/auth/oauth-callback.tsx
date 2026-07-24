@@ -1,3 +1,4 @@
+import { useSetGoogleDriveOAuthTokenMutation } from '@/api/google-drive';
 import { useSetOAuthTokenMutation } from '@/api/provider';
 import { LoadingScreen } from '@/components/loading-screen';
 import { m } from '@/paraglide/messages';
@@ -19,6 +20,16 @@ export function OAuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const nav = useNavigate();
   const hasInitialized = useRef(false);
+  const setGoogleDriveOAuthTokenMutation = useSetGoogleDriveOAuthTokenMutation({
+    onSuccess: () => {
+      toast.success('Google Drive connected');
+      nav(getPath(['dashboard', 'settings']));
+    },
+    onError: (error) => {
+      toast.error(error.message);
+      nav(getPath(['dashboard', 'settings']));
+    },
+  });
   const setOAuthTokenMutation = useSetOAuthTokenMutation({
     onSuccess: () => {
       const source = consumeOauthConnectSource();
@@ -50,6 +61,7 @@ export function OAuthCallbackPage() {
 
     const code = searchParams.get('code');
     const finalProvider = (provider || '').toUpperCase();
+    const normalizedProvider = (provider || '').toLowerCase();
     const validProviders = ['STRAVA', 'GARMIN', 'SUUNTO', 'COROS', 'POLAR'];
 
     const failInvalid = () => {
@@ -60,6 +72,11 @@ export function OAuthCallbackPage() {
         error_code: 'invalid_oauth_callback',
       });
     };
+
+    if (code && normalizedProvider === 'google-drive') {
+      setGoogleDriveOAuthTokenMutation.mutate(code);
+      return;
+    }
 
     if (!(code && provider && validProviders.includes(finalProvider))) {
       failInvalid();

@@ -1,0 +1,56 @@
+// ============================================================================
+// Google Drive Transport Models
+// ============================================================================
+// Google Drive is used only as a file transport for personal activity imports.
+// It is intentionally separate from provider connector accounts.
+// ============================================================================
+
+model GoogleDriveConnection {
+  // primary key
+  googleDriveConnectionId Int @id @default(autoincrement()) @map("google_drive_connection_id")
+
+  // fields
+  accessToken  String?   @map("access_token")
+  refreshToken String    @map("refresh_token")
+  expiresAt    DateTime? @map("expires_at")
+  scope        String?
+  lastSyncAt   DateTime? @map("last_sync_at")
+
+  // relationships
+  athlete       Athlete                   @relation(fields: [athleteId], references: [athleteId], onDelete: Cascade)
+  athleteId     Int                       @unique @map("athlete_id")
+  importedFiles GoogleDriveImportedFile[]
+
+  // timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("google_drive_connection")
+}
+
+model GoogleDriveImportedFile {
+  // primary key
+  googleDriveImportedFileId Int @id @default(autoincrement()) @map("google_drive_imported_file_id")
+
+  // fields
+  driveFileId  String    @map("drive_file_id")
+  name         String
+  mimeType     String?   @map("mime_type")
+  modifiedTime DateTime? @map("modified_time")
+  md5Checksum  String?   @map("md5_checksum")
+  eventId      Int?      @map("event_id")
+  importedAt   DateTime  @default(now()) @map("imported_at")
+
+  // relationships
+  connection              GoogleDriveConnection @relation(fields: [googleDriveConnectionId], references: [googleDriveConnectionId], onDelete: Cascade)
+  googleDriveConnectionId Int                   @map("google_drive_connection_id")
+
+  // timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([googleDriveConnectionId, driveFileId])
+  @@index([driveFileId])
+  @@index([eventId])
+  @@map("google_drive_imported_file")
+}

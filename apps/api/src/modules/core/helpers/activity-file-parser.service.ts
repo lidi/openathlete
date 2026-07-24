@@ -6,13 +6,18 @@ import {
 } from './activity-parser.interface';
 import { FitParserStrategy } from './strategies/fit-parser.strategy';
 import { GpxParserStrategy } from './strategies/gpx-parser.strategy';
+import { WodbangerTxtParserStrategy } from './strategies/wodbanger-txt-parser.strategy';
 
 @Injectable()
 export class ActivityFileParserService {
   private readonly parsers: ActivityParser[];
 
   constructor() {
-    this.parsers = [new FitParserStrategy(), new GpxParserStrategy()];
+    this.parsers = [
+      new FitParserStrategy(),
+      new GpxParserStrategy(),
+      new WodbangerTxtParserStrategy(),
+    ];
   }
 
   /**
@@ -92,6 +97,7 @@ export class ActivityFileParserService {
         'application/xml',
         'text/xml',
         'application/gpx',
+        'text/plain',
       ];
       for (const type of commonTypes) {
         if (parser.canHandle(type)) {

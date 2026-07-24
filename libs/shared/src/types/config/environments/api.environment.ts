@@ -84,6 +84,23 @@ export const ApiEnvSchema = z
       .optional()
       .describe('Comma-separated list of allowed CORS origins'),
 
+    // Google Drive transport (optional)
+    GOOGLE_DRIVE_CLIENT_ID: z
+      .string()
+      .optional()
+      .describe('Google OAuth client ID for Drive transport'),
+
+    GOOGLE_DRIVE_CLIENT_SECRET: z
+      .string()
+      .optional()
+      .describe('Google OAuth client secret for Drive transport'),
+
+    GOOGLE_DRIVE_REDIRECT_URI: z
+      .string()
+      .url('GOOGLE_DRIVE_REDIRECT_URI must be a valid URL')
+      .optional()
+      .describe('Google OAuth redirect URI for Drive transport'),
+
     // Strava OAuth
     STRAVA_CLIENT_ID: z
       .string()

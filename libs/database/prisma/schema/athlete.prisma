@@ -30,6 +30,7 @@ model Athlete {
   availability             AthleteAvailability[]
   providerAccounts         ProviderAccount[]
   providerWorkoutExports   ProviderWorkoutExport[]
+  googleDriveConnection    GoogleDriveConnection?
   settings                 AthleteSettings?
   injuries                 AthleteInjury[]
 
