@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { m } from '@/paraglide/messages';
 import { getPath } from '@/routes/paths';
 import { cn } from '@/utils/shadcn';
-import { Calendar, MessageCircle, User } from 'lucide-react';
+import { Calendar, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 interface NavItem {
@@ -22,11 +22,6 @@ const navItems: NavItem[] = [
     icon: User,
     path: getPath(['dashboard', 'profile']),
   },
-  {
-    label: m.messages(),
-    icon: MessageCircle,
-    path: getPath(['dashboard', 'messages']),
-  },
 ];
 
 export function MobileNavbar() {
@@ -38,7 +33,7 @@ export function MobileNavbar() {
       className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <div className="grid grid-cols-3">
+      <div className="grid grid-cols-2">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;

@@ -20,7 +20,6 @@ import {
   Calendar,
   CogIcon,
   MedalIcon,
-  MessageCircle,
   PieChart,
   TrendingUp,
   User,
@@ -52,12 +51,6 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
           title: m.dashboard(),
           url: getPath(['dashboard', 'coach']),
           icon: PieChart,
-          spaces: ['COACH'] as UserRole[],
-        },
-        {
-          title: m.messages(),
-          url: getPath(['dashboard', 'messages']),
-          icon: MessageCircle,
           spaces: ['COACH'] as UserRole[],
         },
       ];
@@ -136,12 +129,6 @@ export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
         title: m.metrics(),
         url: getPath(['dashboard', 'metrics']),
         icon: Activity,
-        spaces: ['ATHLETE'] as UserRole[],
-      },
-      {
-        title: m.messages(),
-        url: getPath(['dashboard', 'messages']),
-        icon: MessageCircle,
         spaces: ['ATHLETE'] as UserRole[],
       },
     ];
