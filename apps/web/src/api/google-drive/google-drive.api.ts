@@ -3,6 +3,7 @@ import client, { routes } from '@/utils/axios';
 export interface GoogleDriveStatus {
   connected: boolean;
   folderName: string;
+  importedFolderName: string;
   lastSyncAt?: string | null;
   importedFiles: number;
 }
@@ -10,6 +11,7 @@ export interface GoogleDriveStatus {
 export interface GoogleDriveImportResult {
   imported: number;
   skipped: number;
+  archived: number;
   totalCandidates: number;
   errors: Array<{ fileId: string; name: string; message: string }>;
 }

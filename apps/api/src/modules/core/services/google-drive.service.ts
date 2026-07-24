@@ -28,6 +28,7 @@ type GoogleDriveFile = {
   mimeType?: string;
   modifiedTime?: string;
   md5Checksum?: string;
+  parents?: string[];
 };
 
 type GoogleDriveListResponse = {
@@ -37,9 +38,9 @@ type GoogleDriveListResponse = {
 
 @Injectable()
 export class GoogleDriveService {
-  private readonly driveReadonlyScope =
-    'https://www.googleapis.com/auth/drive.readonly';
+  private readonly driveScope = 'https://www.googleapis.com/auth/drive';
   private readonly workoutsFolderName = 'myworkouts';
+  private readonly importedFolderName = 'myworkouts-imported';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -54,7 +55,7 @@ export class GoogleDriveService {
       client_id: config.clientId,
       redirect_uri: config.redirectUri,
       response_type: 'code',
-      scope: this.driveReadonlyScope,
+      scope: this.driveScope,
       access_type: 'offline',
       include_granted_scopes: 'true',
       prompt: 'consent',
@@ -119,6 +120,7 @@ export class GoogleDriveService {
     return {
       connected: !!connection,
       folderName: this.workoutsFolderName,
+      importedFolderName: this.importedFolderName,
       lastSyncAt: connection?.lastSyncAt ?? null,
       importedFiles: connection?._count.importedFiles ?? 0,
     };
@@ -144,18 +146,41 @@ export class GoogleDriveService {
     }
 
     const accessToken = await this.getValidAccessToken(connection);
+    this.ensureDriveWriteScope(connection.scope);
     const alreadyImported = new Set(
       connection.importedFiles.map((file) => file.driveFileId),
     );
     const files = await this.listCandidateFiles(accessToken);
+    const importedFolderId = files.length
+      ? await this.findOrCreateImportedFolder(accessToken)
+      : null;
+    const importDate = this.formatDriveImportDate(new Date());
 
     let imported = 0;
     let skipped = 0;
+    let archived = 0;
     const errors: Array<{ fileId: string; name: string; message: string }> = [];
 
     for (const file of files) {
       if (alreadyImported.has(file.id)) {
         skipped++;
+        if (importedFolderId) {
+          try {
+            await this.archiveFile(
+              accessToken,
+              file,
+              importedFolderId,
+              importDate,
+            );
+            archived++;
+          } catch (error) {
+            errors.push({
+              fileId: file.id,
+              name: file.name,
+              message: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
         continue;
       }
 
@@ -169,12 +194,21 @@ export class GoogleDriveService {
             originalname: file.name,
           },
         );
+        const archivedName =
+          importedFolderId === null
+            ? file.name
+            : await this.archiveFile(
+                accessToken,
+                file,
+                importedFolderId,
+                importDate,
+              );
 
         await this.prisma.googleDriveImportedFile.create({
           data: {
             googleDriveConnectionId: connection.googleDriveConnectionId,
             driveFileId: file.id,
-            name: file.name,
+            name: archivedName,
             mimeType: file.mimeType,
             modifiedTime: file.modifiedTime
               ? new Date(file.modifiedTime)
@@ -188,6 +222,9 @@ export class GoogleDriveService {
         });
 
         imported++;
+        if (importedFolderId) {
+          archived++;
+        }
       } catch (error) {
         errors.push({
           fileId: file.id,
@@ -209,6 +246,7 @@ export class GoogleDriveService {
     return {
       imported,
       skipped,
+      archived,
       totalCandidates: files.length,
       errors,
     };
@@ -234,6 +272,16 @@ export class GoogleDriveService {
     }
 
     return { clientId, clientSecret, redirectUri };
+  }
+
+  private ensureDriveWriteScope(scope: string | null) {
+    if (scope?.split(' ').includes(this.driveScope)) {
+      return;
+    }
+
+    throw new BadRequestException(
+      'Google Drive must be reconnected before importing. The app now needs Drive write permission to rename imported files and move them to myworkouts-imported.',
+    );
   }
 
   private getExpiresAt(expiresIn?: number): Date | undefined {
@@ -333,7 +381,7 @@ export class GoogleDriveService {
           params: {
             q: this.buildFileQuery(folderIds),
             fields:
-              'nextPageToken,files(id,name,mimeType,modifiedTime,md5Checksum)',
+              'nextPageToken,files(id,name,mimeType,modifiedTime,md5Checksum,parents)',
             orderBy: 'modifiedTime desc',
             pageSize: 100,
             pageToken,
@@ -376,6 +424,121 @@ export class GoogleDriveService {
     } while (pageToken);
 
     return folders.map((folder) => folder.id);
+  }
+
+  private async findOrCreateImportedFolder(accessToken: string) {
+    const existingFolderId = await this.findImportedFolderId(accessToken);
+    if (existingFolderId) {
+      return existingFolderId;
+    }
+
+    const response = await axios.post<GoogleDriveFile>(
+      'https://www.googleapis.com/drive/v3/files',
+      {
+        name: this.importedFolderName,
+        mimeType: 'application/vnd.google-apps.folder',
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        params: {
+          fields: 'id,name',
+        },
+        timeout: 15000,
+      },
+    );
+
+    return response.data.id;
+  }
+
+  private async findImportedFolderId(accessToken: string) {
+    let pageToken: string | undefined;
+
+    do {
+      const response = await axios.get<GoogleDriveListResponse>(
+        'https://www.googleapis.com/drive/v3/files',
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          params: {
+            q: `mimeType = 'application/vnd.google-apps.folder' and name = '${this.escapeDriveQueryValue(this.importedFolderName)}' and trashed = false`,
+            fields: 'nextPageToken,files(id,name)',
+            pageSize: 10,
+            pageToken,
+          },
+          timeout: 15000,
+        },
+      );
+
+      const folder = response.data.files?.[0];
+      if (folder) {
+        return folder.id;
+      }
+
+      pageToken = response.data.nextPageToken;
+    } while (pageToken);
+
+    return null;
+  }
+
+  private async archiveFile(
+    accessToken: string,
+    file: GoogleDriveFile,
+    importedFolderId: string,
+    importDate: string,
+  ) {
+    const archivedName = this.appendImportDate(file.name, importDate);
+    const removeParents = file.parents
+      ?.filter((parentId) => parentId !== importedFolderId)
+      .join(',');
+
+    try {
+      await axios.patch<GoogleDriveFile>(
+        `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}`,
+        {
+          name: archivedName,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          params: {
+            addParents: importedFolderId,
+            removeParents: removeParents || undefined,
+            fields: 'id,name,parents',
+          },
+          timeout: 15000,
+        },
+      );
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 403) {
+        throw new Error(
+          'Google Drive refused file rename/move. Reconnect Google Drive and approve Drive access.',
+        );
+      }
+      throw error;
+    }
+
+    return archivedName;
+  }
+
+  private appendImportDate(name: string, importDate: string) {
+    const extensionIndex = name.lastIndexOf('.');
+    const hasExtension = extensionIndex > 0;
+    const baseName = hasExtension ? name.slice(0, extensionIndex) : name;
+    const extension = hasExtension ? name.slice(extensionIndex) : '';
+
+    if (baseName.endsWith(`-${importDate}`)) {
+      return name;
+    }
+
+    return `${baseName}-${importDate}${extension}`;
+  }
+
+  private formatDriveImportDate(date: Date) {
+    return date.toISOString().slice(0, 10);
   }
 
   private buildFileQuery(folderIds: string[]) {

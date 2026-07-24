@@ -34,7 +34,7 @@ export function ConnectorsTab() {
   const googleDriveImportNowMutation = useGoogleDriveImportNowMutation({
     onSuccess: (result) => {
       toast.success(
-        `Google Drive import complete: ${result.imported} imported, ${result.skipped} skipped`,
+        `Google Drive import complete: ${result.imported} imported, ${result.skipped} skipped, ${result.archived} archived`,
       );
     },
     onError: (error) => {
@@ -85,10 +85,16 @@ export function ConnectorsTab() {
             <div className="flex flex-col gap-4">
               <div className="space-y-1 text-sm text-muted-foreground">
                 <p>
-                  Google Drive is only used to download `.fit` and `.txt` files
-                  from the `myworkouts` folder.
+                  Google Drive imports `.fit` and `.txt` files from
+                  `myworkouts`, then moves imported files to
+                  `myworkouts-imported`.
                 </p>
                 <p>Folder: {googleDriveStatus?.folderName ?? 'myworkouts'}</p>
+                <p>
+                  Imported folder:{' '}
+                  {googleDriveStatus?.importedFolderName ??
+                    'myworkouts-imported'}
+                </p>
                 {googleDriveStatus?.lastSyncAt && (
                   <p>
                     Last import:{' '}
